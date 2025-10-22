@@ -11,6 +11,11 @@ from .genome import (
     WeightMutationConfig,
 )
 from .innovations import InnovationSnapshot, InnovationTracker
+from .network import (
+    DEFAULT_ACTIVATIONS,
+    FeedForwardNetwork,
+    compute_feedforward_layers,
+)
 
 __all__ = [
     "ConnectionGene",
@@ -23,4 +28,7 @@ __all__ = [
     "AddConnectionConfig",
     "AddNodeConfig",
     "CrossoverConfig",
+    "FeedForwardNetwork",
+    "DEFAULT_ACTIVATIONS",
+    "compute_feedforward_layers",
 ]
