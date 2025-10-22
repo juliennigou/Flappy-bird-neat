@@ -33,6 +33,19 @@ class EvaluationConfig:
             raise ValueError(msg)
 
 
+@dataclass(slots=True)
+class EvaluationStats:
+    """Aggregate statistics from the most recent evaluation pass."""
+
+    steps: int = 0
+    episodes: int = 0
+
+    def accumulate(self, *, steps: int, episodes: int) -> None:
+        """Add counters to the aggregate totals."""
+        self.steps += steps
+        self.episodes += episodes
+
+
 def _episode_seed_series(
     base_seed: int,
     worker_id: int,
@@ -51,15 +64,18 @@ def _evaluate_genome(
     action_transform: ActionTransform,
     config: EvaluationConfig,
     episode_seeds: Iterable[int],
-) -> float:
+) -> tuple[float, int, int]:
     network = FeedForwardNetwork.from_genome(genome)
     rewards: list[float] = []
+    total_steps = 0
+    episode_count = 0
     for seed in episode_seeds:
         env = env_factory()
         observation = env.reset(seed=seed)
         total_reward = 0.0
         steps = 0
         done = False
+        episode_count += 1
 
         while True:
             inputs = obs_transform(observation)
@@ -68,6 +84,7 @@ def _evaluate_genome(
             observation, reward, done, _info = env.step(action)
             total_reward += float(reward)
             steps += 1
+            total_steps += 1
             if done:
                 break
             if config.max_steps is not None and steps >= config.max_steps:
@@ -76,7 +93,8 @@ def _evaluate_genome(
         rewards.append(total_reward)
         if hasattr(env, "close"):
             env.close()
-    return sum(rewards) / len(rewards)
+    average_reward = sum(rewards) / len(rewards)
+    return average_reward, total_steps, episode_count
 
 
 class SyncEvaluator:
@@ -94,9 +112,11 @@ class SyncEvaluator:
         self.obs_transform = obs_transform
         self.action_transform = action_transform
         self.config = config or EvaluationConfig()
+        self.last_stats = EvaluationStats()
 
     def __call__(self, genomes: Mapping[int, Genome], rng: Random) -> dict[int, float]:
         if not genomes:
+            self.last_stats = EvaluationStats()
             return {}
 
         base_seed = (
@@ -104,6 +124,7 @@ class SyncEvaluator:
         )
         episode_counter = 0
         results: dict[int, float] = {}
+        stats = EvaluationStats()
 
         for genome_id, genome in sorted(genomes.items(), key=lambda item: item[0]):
             seeds, episode_counter = _episode_seed_series(
@@ -112,7 +133,7 @@ class SyncEvaluator:
                 episode_counter=episode_counter,
                 episodes_per_genome=self.config.episodes_per_genome,
             )
-            fitness = _evaluate_genome(
+            fitness, steps, episodes = _evaluate_genome(
                 genome,
                 self.env_factory,
                 self.obs_transform,
@@ -121,7 +142,9 @@ class SyncEvaluator:
                 seeds,
             )
             results[genome_id] = fitness
+            stats.accumulate(steps=steps, episodes=episodes)
 
+        self.last_stats = stats
         return results
 
 
@@ -148,7 +171,7 @@ def _worker_loop(
                 episode_counter=episode_counter,
                 episodes_per_genome=config.episodes_per_genome,
             )
-            fitness = _evaluate_genome(
+            fitness, steps, episodes = _evaluate_genome(
                 genome,
                 env_factory,
                 obs_transform,
@@ -156,7 +179,7 @@ def _worker_loop(
                 config,
                 seeds,
             )
-            result_queue.put((genome_id, fitness))
+            result_queue.put((genome_id, fitness, steps, episodes))
     except Exception:  # pragma: no cover - propagated to parent
         result_queue.put(("__error__", worker_id))
         raise
@@ -193,9 +216,11 @@ class ParallelEvaluator:
         self.batch_size = batch_size
         self.timeout_s = timeout_s
         self.config = config or EvaluationConfig()
+        self.last_stats = EvaluationStats()
 
     def __call__(self, genomes: Mapping[int, Genome], rng: Random) -> dict[int, float]:
         if not genomes:
+            self.last_stats = EvaluationStats()
             return {}
 
         base_seed = (
@@ -237,17 +262,22 @@ class ParallelEvaluator:
 
             results: dict[int, float] = {}
             remaining = len(items)
+            stats = EvaluationStats()
             while remaining:
                 if self.timeout_s is None:
-                    genome_id, fitness = result_queue.get()
+                    genome_id, fitness, steps, episodes = result_queue.get()
                 else:
-                    genome_id, fitness = result_queue.get(timeout=self.timeout_s)
+                    genome_id, fitness, steps, episodes = result_queue.get(
+                        timeout=self.timeout_s
+                    )
                 if genome_id == "__error__":
                     raise RuntimeError(f"Worker {fitness} failed during evaluation.")
                 results[genome_id] = fitness
+                stats.accumulate(steps=steps, episodes=episodes)
                 remaining -= 1
 
             success = True
+            self.last_stats = stats
             return results
         finally:
             for proc in processes:
@@ -261,5 +291,6 @@ class ParallelEvaluator:
 __all__ = [
     "EvaluationConfig",
     "ParallelEvaluator",
+    "EvaluationStats",
     "SyncEvaluator",
 ]

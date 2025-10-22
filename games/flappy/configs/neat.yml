@@ -1,4 +1,4 @@
-population_size: 10
+population_size: 300
 elitism: 1
 survival_threshold: 0.5
 max_stagnation: 5
@@ -6,3 +6,12 @@ episodes_per_genome: 1
 max_generations: 2000
 fitness_threshold: 20.0
 seed: 42
+allow_recurrent: false
+weight_mutate_rate: 0.9
+weight_perturb_sd: 0.6
+weight_reset_rate: 0.1
+add_conn_rate: 0.08
+add_node_rate: 0.03
+crossover_rate: 0.75
+disable_inherit_rate: 0.25
+new_node_activation: tanh

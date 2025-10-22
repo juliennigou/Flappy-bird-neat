@@ -4,8 +4,15 @@ from random import Random
 
 import pytest
 from neatlab.genes import ConnectionGene, NodeGene, NodeType
-from neatlab.genome import Genome
-from neatlab.population import PopulationConfig, PopulationState
+from neatlab.genome import (
+    AddConnectionConfig,
+    AddNodeConfig,
+    CrossoverConfig,
+    Genome,
+    WeightMutationConfig,
+)
+from neatlab.innovations import InnovationTracker
+from neatlab.population import MutationOperators, PopulationConfig, PopulationState
 from neatlab.reproduction import ReproductionConfig
 from neatlab.species import SpeciesConfig, SpeciesManager
 
@@ -54,6 +61,32 @@ def _population_state(pop_size: int = 4) -> PopulationState:
     )
 
 
+def _operators(
+    *,
+    tracker: InnovationTracker,
+    weight_value: float = 42.0,
+    add_conn_rate: float = 0.0,
+    add_node_rate: float = 0.0,
+    crossover_rate: float = 0.0,
+) -> MutationOperators:
+    weight_config = WeightMutationConfig(
+        mutate_rate=1.0,
+        perturb_sd=0.1,
+        reset_rate=1.0,
+        weight_init=lambda rng: weight_value,
+    )
+    return MutationOperators(
+        tracker=tracker,
+        weight=weight_config,
+        add_connection=AddConnectionConfig(allow_recurrent=False, max_attempts=5),
+        add_node=AddNodeConfig(activation="tanh"),
+        add_connection_rate=add_conn_rate,
+        add_node_rate=add_node_rate,
+        crossover_rate=crossover_rate,
+        crossover=CrossoverConfig(disable_inherit_rate=0.0),
+    )
+
+
 def test_evaluate_updates_champion() -> None:
     population = _population_state()
 
@@ -94,20 +127,19 @@ def test_reproduce_generates_next_generation_and_applies_mutation() -> None:
     population.evaluate(lambda genomes, rng: {gid: 1.0 + gid for gid in genomes})
     species = population.speciate()
 
-    mutated_weights: list[float] = []
+    tracker = InnovationTracker()
+    operators = _operators(tracker=tracker, weight_value=3.5)
 
-    def mutate(genome: Genome, rng: Random) -> None:
-        connection = next(iter(genome.connections.values()))
-        mutated = connection.copy(weight=connection.weight + 0.5)
-        genome.connections[mutated.innovation] = mutated
-        mutated_weights.append(mutated.weight)
-
-    population.reproduce(species, mutate)
+    population.reproduce(species, operators)
 
     assert population.generation == 1
     assert len(population.genomes) == population.config.population_size
     assert len(set(population.genomes)) == population.config.population_size
-    assert mutated_weights  # at least one mutation applied
+    weights = [
+        next(iter(genome.connections.values())).weight
+        for genome in population.genomes.values()
+    ]
+    assert any(weight == pytest.approx(3.5) for weight in weights)
     assert population.champion_id is not None
 
 
@@ -118,5 +150,61 @@ def test_reproduce_fallbacks_when_all_species_stagnant() -> None:
 
     population.stagnant_species = {item.id for item in species}
 
-    population.reproduce(species, lambda genome, rng: None)
+    tracker = InnovationTracker()
+    operators = _operators(tracker=tracker)
+
+    population.reproduce(species, operators)
     assert population.generation == 1
+
+
+def test_reproduce_can_add_connection() -> None:
+    nodes = {
+        0: NodeGene(0, NodeType.INPUT, "identity"),
+        1: NodeGene(1, NodeType.INPUT, "identity"),
+        2: NodeGene(2, NodeType.OUTPUT, "identity"),
+    }
+    base_connections = {0: ConnectionGene(0, 0, 2, 1.0)}
+
+    genomes = {
+        idx: Genome(
+            nodes={nid: gene.copy() for nid, gene in nodes.items()},
+            connections={
+                innovation: conn.copy()
+                for innovation, conn in base_connections.items()
+            },
+        )
+        for idx in range(2)
+    }
+
+    population = PopulationState(
+        generation=0,
+        genomes=genomes,
+        rng=Random(0),
+        species_manager=_species_manager(),
+        config=PopulationConfig(
+            population_size=2,
+            elitism=0,
+            survival_threshold=0.5,
+            max_stagnation=1,
+        ),
+        reproduction_config=ReproductionConfig(elitism=0, survival_threshold=0.5),
+    )
+
+    population.evaluate(lambda genomes, rng: {gid: 1.0 for gid in genomes})
+    species = population.speciate()
+
+    tracker = InnovationTracker()
+    tracker.register(0, 2)
+    operators = _operators(
+        tracker=tracker,
+        weight_value=1.0,
+        add_conn_rate=1.0,
+        add_node_rate=0.0,
+        crossover_rate=0.0,
+    )
+
+    population.reproduce(species, operators)
+
+    connection_counts = [len(genome.connections) for genome in population.genomes.values()]
+    assert any(count > 1 for count in connection_counts)
+    assert tracker.peek(1, 2) is not None

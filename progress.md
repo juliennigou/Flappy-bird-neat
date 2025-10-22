@@ -1,7 +1,7 @@
 # Project Progress
 
 ## Current Objective
-- Étape 8 — CLI & Configs
+- Étape 9 — E2E & Performance
 
 ## Completed Milestones
 - Étape 0 — Bootstrap tooling & repo structure
@@ -12,7 +12,10 @@
 - Étape 5 — Population & Evolution Loop
 - Étape 6 — Evaluators & Parallelism
 - Étape 7 — Flappy Env Integration
+- Étape 8 — CLI & Configs
 
 ## Notes
-- Lint/type/tests exécutés (`make lint`, `make type`, `make test`) pour Étape 7.
-- Implémentation `games/flappy/env` (core headless + adapter + visual stub) validée par tests unitaires.
+- Implemented persistent training runs with metrics, checkpoints, and resume support.
+- Added CLI benchmark mode and coverage tests (E2E training + benchmark smoke).
+- Integrated structural mutations and crossover in the evolution loop with persisted
+  innovation tracking.

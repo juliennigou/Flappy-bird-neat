@@ -2,11 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from random import Random
 
-from .genome import Genome
+from .genome import (
+    AddConnectionConfig,
+    AddNodeConfig,
+    CrossoverConfig,
+    Genome,
+    WeightMutationConfig,
+)
+from .innovations import InnovationTracker
 from .reproduction import (
     ReproductionConfig,
     compute_offspring_allocation,
@@ -36,6 +43,38 @@ class PopulationConfig:
         if self.max_stagnation < 0:
             msg = "max_stagnation must be >= 0."
             raise ValueError(msg)
+
+
+@dataclass(slots=True)
+class MutationOperators:
+    """Aggregates mutation and crossover behaviour for offspring production."""
+
+    tracker: InnovationTracker
+    weight: WeightMutationConfig
+    add_connection: AddConnectionConfig
+    add_node: AddNodeConfig
+    add_connection_rate: float
+    add_node_rate: float
+    crossover_rate: float
+    crossover: CrossoverConfig
+
+    def __post_init__(self) -> None:
+        for label, value in (
+            ("add_connection_rate", self.add_connection_rate),
+            ("add_node_rate", self.add_node_rate),
+            ("crossover_rate", self.crossover_rate),
+        ):
+            if not 0.0 <= value <= 1.0:
+                msg = f"{label} must be in [0, 1]."
+                raise ValueError(msg)
+
+    def should_crossover(self, rng: Random) -> bool:
+        """Return whether crossover should be applied for the next offspring."""
+        if self.crossover_rate <= 0.0:
+            return False
+        if self.crossover_rate >= 1.0:
+            return True
+        return rng.random() < self.crossover_rate
 
 
 @dataclass(slots=True)
@@ -95,7 +134,7 @@ class PopulationState:
     def reproduce(
         self,
         species: Sequence[Species],
-        mutate: Callable[[Genome, Random], None],
+        operators: MutationOperators,
     ) -> None:
         """Generate the next generation of genomes."""
 
@@ -128,8 +167,12 @@ class PopulationState:
 
             for _ in range(quota - len(elites)):
                 parent_id = self.rng.choice(survivors)
-                offspring = self.genomes[parent_id].copy()
-                mutate(offspring, self.rng)
+                offspring = self._produce_offspring(
+                    parent_id=parent_id,
+                    species_obj=species_obj,
+                    survivors=survivors,
+                    operators=operators,
+                )
                 new_id = self._allocate_genome_id(new_genomes)
                 new_genomes[new_id] = offspring
 
@@ -151,6 +194,70 @@ class PopulationState:
         self.genomes = new_genomes
         self.generation += 1
 
+    def _produce_offspring(
+        self,
+        *,
+        parent_id: int,
+        species_obj: Species,
+        survivors: Sequence[int],
+        operators: MutationOperators,
+    ) -> Genome:
+        if parent_id not in self.genomes:
+            msg = f"Unknown parent genome id: {parent_id}"
+            raise KeyError(msg)
+        if parent_id not in self.fitnesses:
+            msg = f"Missing fitness for parent genome id {parent_id}"
+            raise KeyError(msg)
+
+        parent = self.genomes[parent_id]
+        child: Genome
+        if operators.should_crossover(self.rng):
+            partner_candidates = [gid for gid in survivors if gid != parent_id]
+            if not partner_candidates:
+                partner_candidates = [
+                    gid for gid in species_obj.members if gid != parent_id
+                ]
+            partner_id = self.rng.choice(partner_candidates) if partner_candidates else None
+            if partner_id is not None and partner_id in self.genomes:
+                if partner_id not in self.fitnesses:
+                    msg = f"Missing fitness for partner genome id {partner_id}"
+                    raise KeyError(msg)
+                partner = self.genomes[partner_id]
+                child = parent.crossover(
+                    partner,
+                    rng=self.rng,
+                    fitness_self=self.fitnesses[parent_id],
+                    fitness_other=self.fitnesses[partner_id],
+                    config=operators.crossover,
+                )
+            else:
+                child = parent.copy()
+        else:
+            child = parent.copy()
+
+        child.mutate_weight(self.rng, operators.weight)
+
+        if (
+            operators.add_connection_rate > 0.0
+            and self.rng.random() < operators.add_connection_rate
+        ):
+            child.mutate_add_connection(
+                self.rng,
+                operators.tracker,
+                operators.add_connection,
+            )
+
+        if (
+            operators.add_node_rate > 0.0
+            and self.rng.random() < operators.add_node_rate
+        ):
+            child.mutate_add_node(
+                self.rng,
+                operators.tracker,
+                operators.add_node,
+            )
+        return child
+
     def _allocate_genome_id(self, existing: Mapping[int, Genome]) -> int:
         candidate = 0
         occupied = set(existing) | set(self.genomes)
@@ -162,4 +269,5 @@ class PopulationState:
 __all__ = [
     "PopulationConfig",
     "PopulationState",
+    "MutationOperators",
 ]

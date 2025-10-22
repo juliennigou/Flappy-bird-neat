@@ -10,6 +10,12 @@ from typing import Any
 import yaml
 
 from .evaluator import EvaluationConfig
+from .genome import (
+    AddConnectionConfig,
+    AddNodeConfig,
+    CrossoverConfig,
+    WeightMutationConfig,
+)
 from .population import PopulationConfig
 from .reproduction import ReproductionConfig
 from .species import SpeciesConfig
@@ -34,6 +40,34 @@ class NEATConfig:
     adjust_rate: float = 0.1
     min_compatibility_threshold: float = 0.5
     max_compatibility_threshold: float = 5.0
+    weight_mutate_rate: float = 0.9
+    weight_perturb_sd: float = 0.6
+    weight_reset_rate: float = 0.1
+    add_connection_rate: float = 0.05
+    add_node_rate: float = 0.03
+    crossover_rate: float = 0.75
+    disable_inherit_rate: float = 0.25
+    allow_recurrent: bool = False
+    new_node_activation: str = "tanh"
+
+    def __post_init__(self) -> None:
+        for label, value in (
+            ("weight_mutate_rate", self.weight_mutate_rate),
+            ("weight_reset_rate", self.weight_reset_rate),
+            ("add_connection_rate", self.add_connection_rate),
+            ("add_node_rate", self.add_node_rate),
+            ("crossover_rate", self.crossover_rate),
+            ("disable_inherit_rate", self.disable_inherit_rate),
+        ):
+            if not 0.0 <= value <= 1.0:
+                msg = f"{label} must be in [0, 1]."
+                raise ValueError(msg)
+        if self.weight_perturb_sd <= 0.0:
+            msg = "weight_perturb_sd must be positive."
+            raise ValueError(msg)
+        if not self.new_node_activation or not self.new_node_activation.strip():
+            msg = "new_node_activation must be a non-empty string."
+            raise ValueError(msg)
 
     def population_config(self) -> PopulationConfig:
         return PopulationConfig(
@@ -68,6 +102,22 @@ class NEATConfig:
             seed=self.seed,
         )
 
+    def weight_mutation_config(self) -> WeightMutationConfig:
+        return WeightMutationConfig(
+            mutate_rate=self.weight_mutate_rate,
+            perturb_sd=self.weight_perturb_sd,
+            reset_rate=self.weight_reset_rate,
+        )
+
+    def add_connection_config(self) -> AddConnectionConfig:
+        return AddConnectionConfig(allow_recurrent=self.allow_recurrent)
+
+    def add_node_config(self) -> AddNodeConfig:
+        return AddNodeConfig(activation=self.new_node_activation)
+
+    def crossover_config(self) -> CrossoverConfig:
+        return CrossoverConfig(disable_inherit_rate=self.disable_inherit_rate)
+
 
 @dataclass(slots=True)
 class RunConfig:
@@ -79,6 +129,7 @@ class RunConfig:
     timeout_s: float | None = None
     resume: Path | None = None
     save_every: int | None = None
+    output_dir: Path = Path("runs")
 
     def resolve(self, base_path: Path) -> RunConfig:
         return RunConfig(
@@ -90,6 +141,7 @@ class RunConfig:
             timeout_s=self.timeout_s,
             resume=(base_path / self.resume).resolve() if self.resume else None,
             save_every=self.save_every,
+            output_dir=(base_path / self.output_dir).resolve(),
         )
 
 
@@ -122,6 +174,17 @@ def load_neat_config(path: Path) -> NEATConfig:
         adjust_rate=float(data.get("adjust_rate", 0.1)),
         min_compatibility_threshold=float(data.get("min_compatibility_threshold", 0.5)),
         max_compatibility_threshold=float(data.get("max_compatibility_threshold", 5.0)),
+        weight_mutate_rate=float(data.get("weight_mutate_rate", 0.9)),
+        weight_perturb_sd=float(data.get("weight_perturb_sd", 0.6)),
+        weight_reset_rate=float(data.get("weight_reset_rate", 0.1)),
+        add_connection_rate=float(
+            data.get("add_connection_rate", data.get("add_conn_rate", 0.05))
+        ),
+        add_node_rate=float(data.get("add_node_rate", 0.03)),
+        crossover_rate=float(data.get("crossover_rate", 0.75)),
+        disable_inherit_rate=float(data.get("disable_inherit_rate", 0.25)),
+        allow_recurrent=bool(data.get("allow_recurrent", False)),
+        new_node_activation=str(data.get("new_node_activation", "tanh")),
     )
 
 
@@ -146,6 +209,7 @@ def load_run_config(path: Path) -> RunConfig:
         ),
         resume=(Path(data["resume"]) if data.get("resume") else None),
         save_every=(int(data["save_every"]) if data.get("save_every") else None),
+        output_dir=Path(data.get("output_dir", "runs")),
     )
     return run.resolve(base)
 
