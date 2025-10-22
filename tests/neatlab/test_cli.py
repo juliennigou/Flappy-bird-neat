@@ -63,3 +63,11 @@ def test_cli_train_executes(tmp_path: Path) -> None:
 
     code = cli.main(["train", "--config", str(run_yaml)])
     assert code == 0
+
+
+def test_cli_play_dry_run(tmp_path: Path) -> None:
+    env_yaml = tmp_path / "env.yml"
+    _write_env_config(env_yaml)
+
+    code = cli.main(["play", "--env-config", str(env_yaml), "--dry-run"])
+    assert code == 0

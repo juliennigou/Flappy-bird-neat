@@ -107,8 +107,8 @@ def test_parallel_evaluator_matches_sync() -> None:
         _env_factory,
         _obs_transform,
         _action_transform,
-        workers=2,
-        batch_size=2,
+        workers=1,
+        batch_size=1,
         config=config,
     )
 

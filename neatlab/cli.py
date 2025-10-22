@@ -6,6 +6,10 @@ import argparse
 import sys
 from pathlib import Path
 
+from games.flappy.config import load_env_config
+from games.flappy.env.env_core import FlappyEnv
+from games.flappy.env.env_pygame import FlappyVisualEnv
+
 from .config import NEATConfig, RunConfig, load_neat_config, load_run_config
 from .training import run_training
 
@@ -33,8 +37,73 @@ def _cmd_train(args: argparse.Namespace) -> int:
 
 
 def _cmd_play(args: argparse.Namespace) -> int:
-    print("Play mode is not implemented yet.", file=sys.stderr)
-    return 1
+    env_path = Path(args.env_config)
+    if args.dry_run:
+        load_env_config(env_path)
+        print("[play] configuration validated")
+        return 0
+
+    return _play_interactive(env_path, args.seed, args.fps)
+
+
+def _play_interactive(
+    env_path: Path,
+    seed: int | None,
+    fps: int,
+) -> int:  # pragma: no cover - requires Pygame window
+    try:
+        import pygame
+    except ModuleNotFoundError as exc:  # pragma: no cover - optional dependency
+        print("Pygame is required for play mode.", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+    config = load_env_config(env_path)
+    headless = FlappyEnv(config)
+    visual = FlappyVisualEnv(env=headless, init_pygame=True)
+    visual.reset(seed=seed)
+
+    clock = pygame.time.Clock()
+    running = True
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+                break
+
+        pressed = pygame.key.get_pressed()
+        action = 1 if pressed[pygame.K_SPACE] else 0
+        _observation, reward, done, _ = visual.step(action)
+        visual.render(update_display=True)
+        clock.tick(max(fps, 1))
+
+        if done:
+            print(
+                "Episode finished (reward="
+                f"{reward}). Press ESC to exit or SPACE to restart."
+            )
+            waiting = True
+            while waiting:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        running = False
+                        waiting = False
+                        break
+                    if event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            running = False
+                            waiting = False
+                            break
+                        if event.key == pygame.K_SPACE:
+                            visual.reset(seed=seed)
+                            waiting = False
+                            break
+                if not waiting:
+                    break
+            continue
+
+    visual.close()
+    pygame.quit()
+    return 0
 
 
 def _cmd_benchmark(args: argparse.Namespace) -> int:
@@ -67,7 +136,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     play = subparsers.add_parser(
         "play",
-        help="Play with a trained checkpoint (not yet implemented)",
+        help="Play Flappy Bird manually using the Pygame renderer",
+    )
+    play.add_argument("--env-config", required=True, help="Path to Flappy env YAML")
+    play.add_argument("--seed", type=int, default=None, help="Initial environment seed")
+    play.add_argument("--fps", type=int, default=60, help="Target frames per second")
+    play.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Validate configuration without launching the renderer",
     )
     play.set_defaults(func=_cmd_play)
 
