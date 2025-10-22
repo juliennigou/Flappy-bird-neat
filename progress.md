@@ -14,3 +14,4 @@
 
 ## Notes
 - Lint/type/tests exécutés (`make lint`, `make type`, `make test`) pour Étape 6.
+- Implémentation `games/flappy/env` (core headless + adapter) validée par tests unitaires.
