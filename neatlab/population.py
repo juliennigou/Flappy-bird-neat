@@ -14,11 +14,21 @@ from .genome import (
     WeightMutationConfig,
 )
 from .innovations import InnovationTracker
+from .network import compute_feedforward_layers
 from .reproduction import (
     ReproductionConfig,
     compute_offspring_allocation,
 )
 from .species import Species, SpeciesManager
+
+
+def _is_acyclic(genome: Genome) -> bool:
+    """Return whether the genome encodes an acyclic feed-forward graph."""
+    try:
+        compute_feedforward_layers(genome.nodes, genome.connections.values())
+    except ValueError:
+        return False
+    return True
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,14 +220,17 @@ class PopulationState:
             raise KeyError(msg)
 
         parent = self.genomes[parent_id]
-        child: Genome
+        child = parent.copy()
+        partner_id: int | None = None
         if operators.should_crossover(self.rng):
             partner_candidates = [gid for gid in survivors if gid != parent_id]
             if not partner_candidates:
                 partner_candidates = [
                     gid for gid in species_obj.members if gid != parent_id
                 ]
-            partner_id = self.rng.choice(partner_candidates) if partner_candidates else None
+            partner_id = (
+                self.rng.choice(partner_candidates) if partner_candidates else None
+            )
             if partner_id is not None and partner_id in self.genomes:
                 if partner_id not in self.fitnesses:
                     msg = f"Missing fitness for partner genome id {partner_id}"
@@ -230,12 +243,6 @@ class PopulationState:
                     fitness_other=self.fitnesses[partner_id],
                     config=operators.crossover,
                 )
-            else:
-                child = parent.copy()
-        else:
-            child = parent.copy()
-
-        child.mutate_weight(self.rng, operators.weight)
 
         if (
             operators.add_connection_rate > 0.0
@@ -256,6 +263,17 @@ class PopulationState:
                 operators.tracker,
                 operators.add_node,
             )
+
+        if not _is_acyclic(child):
+            fallback = parent
+            fallback_fitness = self.fitnesses[parent_id]
+            if partner_id is not None and partner_id in self.genomes:
+                partner_fitness = self.fitnesses.get(partner_id, float("-inf"))
+                if partner_fitness > fallback_fitness:
+                    fallback = self.genomes[partner_id]
+            child = fallback.copy()
+
+        child.mutate_weight(self.rng, operators.weight)
         return child
 
     def _allocate_genome_id(self, existing: Mapping[int, Genome]) -> int:

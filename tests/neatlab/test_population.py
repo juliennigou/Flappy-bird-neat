@@ -208,3 +208,83 @@ def test_reproduce_can_add_connection() -> None:
     connection_counts = [len(genome.connections) for genome in population.genomes.values()]
     assert any(count > 1 for count in connection_counts)
     assert tracker.peek(1, 2) is not None
+
+
+def test_reproduce_falls_back_on_cycle(monkeypatch) -> None:
+    nodes = {
+        0: NodeGene(0, NodeType.INPUT, "identity"),
+        1: NodeGene(1, NodeType.HIDDEN, "tanh"),
+        2: NodeGene(2, NodeType.HIDDEN, "tanh"),
+        3: NodeGene(3, NodeType.OUTPUT, "identity"),
+    }
+    connections = {
+        0: ConnectionGene(0, 0, 1, 1.0),
+        1: ConnectionGene(1, 1, 2, 1.0),
+        2: ConnectionGene(2, 2, 3, 1.0),
+    }
+    genomes = {
+        0: Genome(
+            nodes={nid: gene.copy() for nid, gene in nodes.items()},
+            connections={cid: conn.copy() for cid, conn in connections.items()},
+        ),
+        1: Genome(
+            nodes={nid: gene.copy() for nid, gene in nodes.items()},
+            connections={cid: conn.copy() for cid, conn in connections.items()},
+        ),
+    }
+
+    population = PopulationState(
+        generation=0,
+        genomes=genomes,
+        rng=Random(0),
+        species_manager=_species_manager(),
+        config=PopulationConfig(
+            population_size=2,
+            elitism=0,
+            survival_threshold=0.5,
+            max_stagnation=2,
+        ),
+        reproduction_config=ReproductionConfig(elitism=0, survival_threshold=1.0),
+    )
+    population.evaluate(lambda genomes, rng: {gid: 1.0 for gid in genomes})
+    species = population.speciate()
+
+    tracker = InnovationTracker()
+    for conn in connections.values():
+        tracker.register(conn.in_node_id, conn.out_node_id)
+
+    operators = _operators(
+        tracker=tracker,
+        weight_value=1.0,
+        add_conn_rate=1.0,
+        add_node_rate=0.0,
+        crossover_rate=0.0,
+    )
+
+    def force_cycle(
+        genome: Genome,
+        rng: Random,
+        tracker: InnovationTracker,
+        config: AddConnectionConfig,
+    ) -> bool:
+        innovation = tracker.register(2, 1)
+        genome.add_connection(
+            ConnectionGene(
+                innovation=innovation,
+                in_node_id=2,
+                out_node_id=1,
+                weight=1.0,
+                enabled=True,
+            )
+        )
+        return True
+
+    monkeypatch.setattr(Genome, "mutate_add_connection", force_cycle)
+
+    population.reproduce(species, operators)
+
+    for genome in population.genomes.values():
+        assert all(
+            not (conn.in_node_id == 2 and conn.out_node_id == 1)
+            for conn in genome.connections.values()
+        )
