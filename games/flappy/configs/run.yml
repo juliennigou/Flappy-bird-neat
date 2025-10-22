@@ -1,0 +1,5 @@
+neat_config: neat.yml
+env_config: env.yml
+headless: false
+workers: 1
+batch_size: 1

@@ -1,0 +1,8 @@
+population_size: 10
+elitism: 1
+survival_threshold: 0.5
+max_stagnation: 5
+episodes_per_genome: 1
+max_generations: 2000
+fitness_threshold: 20.0
+seed: 42

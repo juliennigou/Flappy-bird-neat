@@ -1,0 +1,16 @@
+name: flappy-neat
+channels:
+  - conda-forge
+dependencies:
+  - python>=3.11
+  - pip
+  - pip:
+      - PyYAML>=6.0
+      - types-PyYAML
+      - pygame
+      - black>=23.10
+      - mypy>=1.7
+      - pytest>=7.4
+      - pytest-cov>=4.1
+      - ruff>=0.1.5
+      - hypothesis>=6.89
