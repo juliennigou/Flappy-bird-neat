@@ -2,6 +2,11 @@
 
 from __future__ import annotations
 
+from .evaluator import (
+    EvaluationConfig,
+    ParallelEvaluator,
+    SyncEvaluator,
+)
 from .genes import ConnectionGene, NodeGene, NodeType
 from .genome import (
     AddConnectionConfig,
@@ -46,6 +51,9 @@ __all__ = [
     "FeedForwardNetwork",
     "DEFAULT_ACTIVATIONS",
     "compute_feedforward_layers",
+    "EvaluationConfig",
+    "SyncEvaluator",
+    "ParallelEvaluator",
     "Species",
     "SpeciesConfig",
     "SpeciesManager",
