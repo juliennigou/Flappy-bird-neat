@@ -16,6 +16,10 @@ from .network import (
     FeedForwardNetwork,
     compute_feedforward_layers,
 )
+from .population import (
+    PopulationConfig,
+    PopulationState,
+)
 from .reproduction import (
     ReproductionConfig,
     ReproductionPlan,
@@ -49,4 +53,6 @@ __all__ = [
     "ReproductionConfig",
     "ReproductionPlan",
     "compute_offspring_allocation",
+    "PopulationConfig",
+    "PopulationState",
 ]

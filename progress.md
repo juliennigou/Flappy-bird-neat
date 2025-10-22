@@ -1,7 +1,7 @@
 # Project Progress
 
 ## Current Objective
-- Étape 5 — Population & Evolution Loop
+- Étape 6 — Evaluators & Parallelism
 
 ## Completed Milestones
 - Étape 0 — Bootstrap tooling & repo structure
@@ -9,6 +9,7 @@
 - Étape 2 — Genome Ops (mutations + crossover)
 - Étape 3 — Réseau (tri topologique & exécution)
 - Étape 4 — Spéciation & Reproduction
+- Étape 5 — Population & Evolution Loop
 
 ## Notes
-- Lint/type/tests exécutés (`make lint`, `make type`, `make test`) pour Étape 4.
+- Lint/type/tests exécutés (`make lint`, `make type`, `make test`) pour Étape 5.
