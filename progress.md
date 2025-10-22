@@ -1,7 +1,7 @@
 # Project Progress
 
 ## Current Objective
-- Étape 6 — Evaluators & Parallelism
+- Étape 7 — Flappy Env Integration
 
 ## Completed Milestones
 - Étape 0 — Bootstrap tooling & repo structure
@@ -10,6 +10,7 @@
 - Étape 3 — Réseau (tri topologique & exécution)
 - Étape 4 — Spéciation & Reproduction
 - Étape 5 — Population & Evolution Loop
+- Étape 6 — Evaluators & Parallelism
 
 ## Notes
-- Lint/type/tests exécutés (`make lint`, `make type`, `make test`) pour Étape 5.
+- Lint/type/tests exécutés (`make lint`, `make type`, `make test`) pour Étape 6.
