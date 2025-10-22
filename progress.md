@@ -1,7 +1,7 @@
 # Project Progress
 
 ## Current Objective
-- Étape 7 — Flappy Env Integration
+- Étape 8 — CLI & Configs
 
 ## Completed Milestones
 - Étape 0 — Bootstrap tooling & repo structure
@@ -11,7 +11,8 @@
 - Étape 4 — Spéciation & Reproduction
 - Étape 5 — Population & Evolution Loop
 - Étape 6 — Evaluators & Parallelism
+- Étape 7 — Flappy Env Integration
 
 ## Notes
-- Lint/type/tests exécutés (`make lint`, `make type`, `make test`) pour Étape 6.
-- Implémentation `games/flappy/env` (core headless + adapter) validée par tests unitaires.
+- Lint/type/tests exécutés (`make lint`, `make type`, `make test`) pour Étape 7.
+- Implémentation `games/flappy/env` (core headless + adapter + visual stub) validée par tests unitaires.

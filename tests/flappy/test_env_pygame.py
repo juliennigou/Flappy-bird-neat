@@ -6,6 +6,9 @@ os.environ.setdefault("SDL_VIDEODRIVER", "dummy")
 
 import pytest
 
+if os.environ.get("PYGAME_TESTS", "0") != "1":
+    pytest.skip("Pygame visual tests disabled", allow_module_level=True)
+
 pytest.importorskip("pygame")
 import pygame
 from games.flappy.env.env_core import FlappyEnv
