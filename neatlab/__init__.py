@@ -16,6 +16,17 @@ from .network import (
     FeedForwardNetwork,
     compute_feedforward_layers,
 )
+from .reproduction import (
+    ReproductionConfig,
+    ReproductionPlan,
+    compute_offspring_allocation,
+)
+from .species import (
+    Species,
+    SpeciesConfig,
+    SpeciesManager,
+    compatibility_distance,
+)
 
 __all__ = [
     "ConnectionGene",
@@ -31,4 +42,11 @@ __all__ = [
     "FeedForwardNetwork",
     "DEFAULT_ACTIVATIONS",
     "compute_feedforward_layers",
+    "Species",
+    "SpeciesConfig",
+    "SpeciesManager",
+    "compatibility_distance",
+    "ReproductionConfig",
+    "ReproductionPlan",
+    "compute_offspring_allocation",
 ]
