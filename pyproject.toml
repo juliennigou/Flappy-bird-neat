@@ -1,0 +1,82 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flappy-bird-neat"
+version = "0.1.0a0"
+description = "Reusable NEAT toolkit with a reference Flappy Bird integration."
+readme = "README.md"
+requires-python = ">=3.10"
+keywords = ["neat", "neuroevolution", "flappy-bird", "pygame"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "black>=23.10",
+  "mypy>=1.7",
+  "pytest>=7.4",
+  "pytest-cov>=4.1",
+  "ruff>=0.1.5",
+  "hypothesis>=6.89",
+]
+
+[tool.setuptools.packages.find]
+include = ["neatlab*", "games*"]
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 88
+src = ["neatlab", "tests"]
+
+[tool.ruff.lint]
+select = [
+  "A",
+  "B",
+  "C4",
+  "E",
+  "F",
+  "I",
+  "N",
+  "RUF100",
+  "TID251",
+  "UP",
+]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+no_implicit_optional = true
+strict = true
+files = ["neatlab"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+addopts = "-q --maxfail=1 --strict-markers --strict-config --cov=neatlab --cov-report=term-missing"
+testpaths = ["tests"]
+xfail_strict = true
+filterwarnings = [
+  "error",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["neatlab"]
+
+[tool.coverage.report]
+skip_covered = true
+skip_empty = true
+fail_under = 85
