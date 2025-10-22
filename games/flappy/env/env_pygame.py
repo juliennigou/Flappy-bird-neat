@@ -10,7 +10,10 @@ from .env_core import FlappyEnv, FlappyEnvConfig
 pygame: Any | None = None
 
 if TYPE_CHECKING:  # pragma: no cover - typing references only
-    import pygame.surface
+    import pygame as _pygame_types
+    SurfaceType = _pygame_types.surface.Surface
+else:  # pragma: no cover - runtime alias
+    SurfaceType = Any
 
 
 def _load_pygame() -> Any:
@@ -51,12 +54,12 @@ class FlappyVisualEnv:
         self.env = env or FlappyEnv(env_config)
         self.visual = visual_config or VisualConfig()
         self.scale = self.visual.scale
-        self._screen: "pygame.surface.Surface" | None = None
+        self._screen: SurfaceType | None = None
         self._last_obs: dict[str, float] | None = None
 
         width = int(self.env.config.screen_width * self.scale)
         height = int(self.env.config.screen_height * self.scale)
-        self._surface = _pg.Surface((width, height))
+        self._surface: SurfaceType = _pg.Surface((width, height))
 
         if init_pygame:
             _pg.display.init()
@@ -64,7 +67,7 @@ class FlappyVisualEnv:
             _pg.display.set_caption("Flappy Bird (visual)")
 
     @property
-    def surface(self) -> "pygame.surface.Surface":
+    def surface(self) -> SurfaceType:
         return self._surface
 
     def reset(self, seed: int | None = None) -> dict[str, float]:
@@ -80,7 +83,7 @@ class FlappyVisualEnv:
         self._last_obs = observation
         return observation, reward, done, info
 
-    def render(self, *, update_display: bool = False) -> "pygame.surface.Surface":
+    def render(self, *, update_display: bool = False) -> SurfaceType:
         if self._last_obs is None:
             msg = "Call reset() before render()."
             raise RuntimeError(msg)
@@ -92,7 +95,7 @@ class FlappyVisualEnv:
         _pg = _load_pygame()
 
         # Draw pipes.
-        for pipe in self.env._pipes:  # type: ignore[attr-defined]
+        for pipe in self.env.pipes():
             x = int(float(pipe["x"]) * self.scale)
             gap_center = float(pipe["gap_center"])
             half_gap = cfg.pipe_gap / 2.0

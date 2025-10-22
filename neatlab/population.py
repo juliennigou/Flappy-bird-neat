@@ -56,7 +56,7 @@ class PopulationState:
     def evaluate(
         self,
         evaluator: Callable[[Mapping[int, Genome], Random], Mapping[int, float]],
-    ) -> None:
+    ) -> Mapping[int, float]:
         """Evaluate all genomes and update fitness state."""
 
         results = evaluator(self.genomes, self.rng)
@@ -70,6 +70,7 @@ class PopulationState:
         if best_fitness > self.champion_fitness:
             self.champion_fitness = best_fitness
             self.champion_id = best_id
+        return self.fitnesses
 
     def speciate(self) -> tuple[Species, ...]:
         """Assign genomes to species and handle stagnation accounting."""

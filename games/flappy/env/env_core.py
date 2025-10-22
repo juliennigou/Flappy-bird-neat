@@ -102,6 +102,10 @@ class FlappyEnv:
             }
         )
 
+    def pipes(self) -> list[dict[str, float | bool]]:
+        """Expose current pipe data for rendering helpers."""
+        return list(self._pipes)
+
     def _observation(self) -> dict[str, float]:
         pipe = self._pipes[0]
         return {

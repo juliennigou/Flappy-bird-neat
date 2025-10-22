@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from .config import NEATConfig, RunConfig, load_neat_config, load_run_config
+from .training import run_training
 
 
 def _load_bundle(config_path: Path) -> tuple[RunConfig, NEATConfig]:
@@ -27,8 +28,8 @@ def _cmd_train(args: argparse.Namespace) -> int:
         print(f"  workers: {run_config.workers}")
         return 0
 
-    print("Training pipeline is not implemented yet.", file=sys.stderr)
-    return 1
+    run_training(run_config, neat_config)
+    return 0
 
 
 def _cmd_play(args: argparse.Namespace) -> int:
